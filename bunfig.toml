@@ -1,0 +1,8 @@
+[install]
+auto = "fallback"
+
+[install.scopes]
+"@railly" = { url = "https://registry.npmjs.org/" }
+
+[test]
+preload = []

@@ -1,0 +1,19 @@
+node_modules/
+dist/
+bin/
+.DS_Store
+*.log
+
+# secrets — defensive
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# tmp + caches
+.bun-cache/
+.cache/
+tmp/
+coverage/
+*.tsbuildinfo

@@ -1,0 +1,64 @@
+{
+  "name": "@railly/unir-cli",
+  "version": "0.1.0",
+  "description": "Agent-first CLI for UNIR (Universidad Internacional de La Rioja) campus online. Surfaces course materials from Moodle + LTI hub + Panopto, downloads, transcribes, summarizes, and publishes to a personal Starlight site.",
+  "keywords": [
+    "unir",
+    "cli",
+    "agent-first",
+    "moodle",
+    "panopto",
+    "education",
+    "spain",
+    "latam",
+    "starlight"
+  ],
+  "homepage": "https://github.com/Railly/unir-cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Railly/unir-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Railly/unir-cli/issues"
+  },
+  "license": "MIT",
+  "author": "Railly Hugo <hi@railly.dev>",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "unir": "./dist/cli.js"
+  },
+  "files": ["dist/", "README.md", "LICENSE"],
+  "scripts": {
+    "dev": "bun run src/cli.ts",
+    "build": "bun build src/cli.ts --target=bun --outfile=dist/cli.js",
+    "build:bin": "bun build src/cli.ts --compile --outfile bin/unir --target=bun-darwin-arm64",
+    "build:bin:linux": "bun build src/cli.ts --compile --outfile bin/unir-linux --target=bun-linux-x64",
+    "test": "bun test --bail",
+    "test:watch": "bun test --watch",
+    "test:live": "UNIR_LIVE_TEST=1 bun test tests/live/",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "prepublishOnly": "bun run build && bun test"
+  },
+  "engines": {
+    "bun": ">=1.3.0"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.3.0",
+    "cheerio": "^1.0.0",
+    "cli-table3": "^0.6.5",
+    "commander": "^14.0.0",
+    "pdf-parse": "^1.1.1",
+    "picocolors": "^1.1.1",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "@types/bun": "latest",
+    "typescript": "^5.6.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

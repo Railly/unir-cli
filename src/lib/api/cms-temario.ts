@@ -11,6 +11,7 @@
 // points at the final mp endpoint. The hub page only shows the first tab
 // by default, so to harvest all base64 IDs we click each tab and re-parse.
 
+import { spawnSync } from "node:child_process";
 import { load } from "cheerio";
 import { unirError } from "../errors";
 import { downloadBinaryViaCookies, navigateAndDump } from "../auth/browser";
@@ -45,24 +46,103 @@ export async function listTemas(profile: string, ltiCmid: number): Promise<TemaL
 
   // 1. Trigger LTI launch (sets CMS cookies in the browser jar)
   const launchUrl = `${MOODLE_BASE}/mod/lti/launch.php?id=${ltiCmid}&triggerview=0`;
-  const first = await navigateAndDump(profile, launchUrl, 5500);
+  let first = await navigateAndDump(profile, launchUrl, 5500);
 
   if (!first.url.startsWith(CMS_BASE)) {
     throw unirError("unknown-error", `expected cms.unir.net redirect, landed on ${first.url}`);
   }
 
-  // 2. Parse hub HTML — first tab visible by default. We need ALL tabs.
+  // 2. The LTI session may resume on a single-tema view if VIDAMA student opened
+  // one earlier. Detect that and click "Menú" to return to the hub.
+  if (isSingleTemaView(first.html)) {
+    const menuClicked = await clickMenuButton(profile);
+    if (menuClicked) {
+      await sleepMs(2500);
+      first = await dumpCurrent(profile);
+    }
+  }
+
+  // 3. Parse hub HTML — first tab visible by default. We need ALL tabs.
   const tabs = extractTabs(first.html);
   if (tabs.length === 0) {
     // Single-tab course: scrape current page (still dedupe by tema number).
     return dedupeByN(parseTemaPage(first.html, "Bloque 1", 0));
   }
 
-  // 3. The CMS hub renders ALL Bloque tabs server-side and includes ALL
+  // 4. The CMS hub renders ALL Bloque tabs server-side and includes ALL
   // temas in a single HTML payload (tabs are JS show/hide). Parsing the
   // first dump is enough; we just dedupe by tema number.
   const items = parseTemaPage(first.html, "(all)", 0);
   return dedupeByN(items);
+}
+
+/** A "single tema" view shows "Ideas clave" + a single Tema header with
+ * its 1.X subsections. The hub view shows multiple Tema headers across
+ * Bloques, no "Ideas clave" wrapper. */
+function isSingleTemaView(html: string): boolean {
+  const $ = load(html);
+  const ideasClaveBtns = $("button, h3, h2").filter(
+    (_i, el) => $(el).text().trim().toLowerCase() === "ideas clave",
+  );
+  const temaHeaders = $("h1, h2, h3, h4, h5, h6").filter((_i, el) =>
+    /^TEMA\s+\d+\./i.test($(el).text().trim()),
+  );
+  return ideasClaveBtns.length > 0 && temaHeaders.length <= 2;
+}
+
+async function clickMenuButton(profile: string): Promise<boolean> {
+  const r = spawnSync(
+    "agent-browser",
+    [
+      "--session-name",
+      `unir-${profile}`,
+      "eval",
+      `(()=>{
+        const candidates = document.querySelectorAll('button, a, [role="button"]');
+        for (const el of candidates) {
+          const txt = (el.textContent || '').trim();
+          if (/^Men[uú]$/i.test(txt) || /Volver al men[uú]/i.test(txt)) {
+            el.click();
+            return 'clicked';
+          }
+        }
+        return 'not-found';
+      })()`,
+    ],
+    { encoding: "utf8" },
+  );
+  return r.status === 0 && r.stdout.includes("clicked");
+}
+
+async function dumpCurrent(profile: string): Promise<{ url: string; html: string }> {
+  const urlR = spawnSync(
+    "agent-browser",
+    ["--session-name", `unir-${profile}`, "get", "url"],
+    { encoding: "utf8" },
+  );
+  const htmlR = spawnSync(
+    "agent-browser",
+    ["--session-name", `unir-${profile}`, "eval", "document.documentElement.outerHTML"],
+    { encoding: "utf8" },
+  );
+  const html = parseEvalRaw(htmlR.stdout);
+  return { url: (urlR.stdout ?? "").trim(), html };
+}
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((res) => setTimeout(res, ms));
+}
+
+function parseEvalRaw(stdout: string): string {
+  const trimmed = stdout.trim();
+  if (!trimmed) return "";
+  try {
+    const v = JSON.parse(trimmed);
+    if (typeof v === "string") return v;
+  } catch {
+    // ignore
+  }
+  return trimmed.replace(/^"|"$/g, "");
 }
 
 /** Collapses duplicate entries by tema number, preferring the one with cmsId set. */

@@ -2,7 +2,7 @@
 auto = "fallback"
 
 [install.scopes]
-"@railly" = { url = "https://registry.npmjs.org/" }
+"@crafter" = { url = "https://registry.npmjs.org/" }
 
 [test]
 preload = []

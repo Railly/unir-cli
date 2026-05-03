@@ -41,8 +41,20 @@ export type TemaListing = {
  *                 Gobierno del Dato)
  */
 export async function listTemas(profile: string, ltiCmid: number): Promise<TemaListing[]> {
-  // 0. Bounce back to /my/ first to clear any stale CMS page in the browser tab.
-  await navigateAndDump(profile, `${MOODLE_BASE}/my/`, 1500);
+  // 0. Bounce back to /my/ until the browser actually lands on
+  // campusonline.unir.net. When called between two different LTI cmids,
+  // the previous CMS sub-domain can hold the tab and a single bounce
+  // sometimes is not enough.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const r = await navigateAndDump(profile, `${MOODLE_BASE}/my/`, 2500);
+    if (r.url.startsWith(MOODLE_BASE)) break;
+    if (attempt === 3) {
+      throw unirError(
+        "auth-expired",
+        `unable to bounce back to ${MOODLE_BASE}/my/ (got ${r.url})`,
+      );
+    }
+  }
 
   // 1. Trigger LTI launch (sets CMS cookies in the browser jar)
   const launchUrl = `${MOODLE_BASE}/mod/lti/launch.php?id=${ltiCmid}&triggerview=0`;

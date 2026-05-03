@@ -33,8 +33,18 @@ export async function listClases(
   profile: string,
   ltiCmid: number,
 ): Promise<ClaseListing[]> {
-  // Bounce to /my/ to clear stale state.
-  await navigateAndDump(profile, `${MOODLE_BASE}/my/`, 1500);
+  // Bounce to /my/ until we actually land on Moodle (LTI sub-app pages
+  // can hold the tab between calls).
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const r = await navigateAndDump(profile, `${MOODLE_BASE}/my/`, 2500);
+    if (r.url.startsWith(MOODLE_BASE)) break;
+    if (attempt === 3) {
+      throw unirError(
+        "auth-expired",
+        `unable to bounce back to ${MOODLE_BASE}/my/ (got ${r.url})`,
+      );
+    }
+  }
 
   const launchUrl = `${MOODLE_BASE}/mod/lti/launch.php?id=${ltiCmid}&triggerview=0`;
   const first = await navigateAndDump(profile, launchUrl, 6500);

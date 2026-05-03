@@ -44,6 +44,103 @@ function ensureBrowser(): void {
   }
 }
 
+/**
+ * Drives the agent-browser session to follow a URL and returns the final
+ * URL + outerHTML. Used for LTI launches and CMS hub navigation.
+ *
+ * Tolerates `open` timeouts — agent-browser may report timeout when the
+ * page contains long-running scripts even though the DOM is ready. We
+ * still attempt to read the URL/HTML afterwards.
+ */
+export async function navigateAndDump(
+  profile: string,
+  url: string,
+  waitMs = 5000,
+): Promise<{ url: string; html: string }> {
+  ensureBrowser();
+  abQuiet(profile, "open", url); // ignore non-zero exit (timeouts ok)
+  await sleep(waitMs);
+  const urlR = abQuiet(profile, "get", "url");
+  const htmlR = abQuiet(profile, "eval", "document.documentElement.outerHTML");
+  const finalUrl = urlR.stdout.trim();
+  const html = parseEvalRaw(htmlR.stdout);
+  if (!html || html.length < 200) {
+    throw unirError(
+      "unknown-error",
+      `navigation produced empty HTML for ${url} (final url: ${finalUrl})`,
+    );
+  }
+  return { url: finalUrl, html };
+}
+
+/**
+ * Snapshot the cookies the browser currently holds for a given origin.
+ *
+ * Strategy: navigate into the origin (so CORS / cookie scope match),
+ * read `document.cookie`, parse. Limitation: this only sees non-httpOnly
+ * cookies. For UNIR's CMS / Panopto, the relevant session cookie is a
+ * non-httpOnly token sent on response, so this is sufficient. For
+ * httpOnly-only origins we'd need CDP `Network.getAllCookies` (future).
+ */
+export async function snapshotCookiesFor(
+  profile: string,
+  url: string,
+): Promise<Record<string, string>> {
+  ensureBrowser();
+  abQuiet(profile, "open", url);
+  await sleep(2500);
+  const r = abQuiet(profile, "eval", "document.cookie");
+  return parseCookies(parseEvalRaw(r.stdout));
+}
+
+/**
+ * Download a binary URL using fetch() inside the browser, but stream the
+ * result to a temp file via window.showSaveFilePicker fallback... easier
+ * alternative used here: fetch via browser, write the binary to a file
+ * inside the page (Blob → URL.createObjectURL), and have the test caller
+ * supply a node-side path. Since file system access from a sandboxed page
+ * isn't trivial, we instead pipe the Blob through native fetch from Node
+ * armed with the cookies we just snapshotted.
+ *
+ * In practice: snapshot cookies + bun `fetch(url, { headers: { Cookie } })`.
+ */
+export async function downloadBinaryViaCookies(
+  profile: string,
+  url: string,
+  outPath: string,
+): Promise<{ status: number; contentType: string | null; bytes: number }> {
+  const origin = new URL(url).origin;
+  const cookies = await snapshotCookiesFor(profile, origin);
+  if (Object.keys(cookies).length === 0) {
+    throw unirError("unknown-error", `no cookies for ${origin}`);
+  }
+  const cookieHeader = Object.entries(cookies)
+    .map(([k, v]) => `${k}=${v}`)
+    .join("; ");
+
+  const r = await fetch(url, {
+    headers: {
+      Cookie: cookieHeader,
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      Accept: "*/*",
+    },
+  });
+
+  if (r.status >= 400) {
+    throw unirError("unknown-error", `download failed: ${r.status}`);
+  }
+
+  const buf = await r.arrayBuffer();
+  const fs = await import("node:fs/promises");
+  await fs.writeFile(outPath, new Uint8Array(buf));
+  return {
+    status: r.status,
+    contentType: r.headers.get("content-type"),
+    bytes: buf.byteLength,
+  };
+}
+
 export type LoginResult = {
   cookies: Record<string, string>;
   sesskey: string;

@@ -6,7 +6,13 @@ import { registerRoot } from "./commands/_root";
 import { registerAuth } from "./commands/auth/index";
 import { registerCursos } from "./commands/cursos/index";
 import { registerDoctor } from "./commands/doctor";
+import { registerClases } from "./commands/clases/index";
+import { registerAnuncios } from "./commands/anuncios/index";
+import { registerNarrar } from "./commands/narrar";
+import { registerPublish } from "./commands/publish";
+import { registerResumir } from "./commands/resumir";
 import { registerSchema } from "./commands/schema";
+import { registerTemas } from "./commands/temas/index";
 import { VERSION } from "./lib/version";
 
 const program = new Command();
@@ -26,6 +32,12 @@ program
 registerRoot(program);
 registerAuth(program);
 registerCursos(program);
+registerTemas(program);
+registerClases(program);
+registerResumir(program);
+registerNarrar(program);
+registerAnuncios(program);
+registerPublish(program);
 registerDoctor(program);
 registerSchema(program);
 

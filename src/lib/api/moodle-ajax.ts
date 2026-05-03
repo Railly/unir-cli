@@ -14,6 +14,24 @@ import type { UnirSession } from "../auth/session-store";
 
 const BASE = "https://campusonline.unir.net";
 
+function ensureMoodleOrigin(profile: string): void {
+  const r = spawnSync(
+    "agent-browser",
+    ["--session-name", `unir-${profile}`, "get", "url"],
+    { encoding: "utf8" },
+  );
+  const current = (r.stdout ?? "").trim();
+  if (current.startsWith(BASE)) return;
+  // Navigate back to /my/ to restore origin
+  spawnSync(
+    "agent-browser",
+    ["--session-name", `unir-${profile}`, "open", `${BASE}/my/`],
+    { encoding: "utf8" },
+  );
+  // small wait for the page to settle
+  Bun.sleepSync(2000);
+}
+
 export type MoodleAjaxRequest = {
   methodname: string;
   args: Record<string, unknown>;
@@ -37,6 +55,11 @@ export async function moodleAjax<T>(
   const body = JSON.stringify([
     { index: 0, methodname: req.methodname, args: req.args ?? {} },
   ]);
+
+  // Make sure we're on the campusonline origin before fetching the AJAX
+  // endpoint — otherwise CORS rejects same-site requests when the previous
+  // page was a cross-origin LTI sub-app (cms.unir.net, lm.lti.unir.net, ...).
+  ensureMoodleOrigin(session.profile);
 
   const evalScript = `
     fetch(${JSON.stringify(url)}, {

@@ -34,7 +34,7 @@ export function registerAuth(program: Command): void {
         if (!username) {
           const r = await text({
             message: "Email UNIR",
-            placeholder: "student@unir.net",
+            placeholder: "tu.correo@dominio.com",
           });
           if (isCancel(r)) {
             outro(theme.warn("aborted"));

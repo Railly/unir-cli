@@ -72,7 +72,7 @@ export const UNIR_ERRORS = {
   },
   "sitio-not-found": {
     name: "SitioNotFound",
-    human: "vidama-curso (Astro site) repo not found at configured path.",
+    human: "Astro site repo not found at configured path.",
     hint: "Run: unir config sitePath <path>",
   },
   "sitio-uncommitted": {

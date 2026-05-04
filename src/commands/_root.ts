@@ -38,7 +38,7 @@ export function registerRoot(program: Command): void {
       `\n  ${theme.emoji.bullet} ${theme.soft("Run")} ${theme.primary("unir doctor")} ${theme.soft("to verify your setup.")}\n`,
     );
     process.stdout.write(
-      `  ${theme.emoji.spark} ${theme.soft("Run")} ${theme.primary("unir auth login --profile vidama")} ${theme.soft("to start.")}\n\n`,
+      `  ${theme.emoji.spark} ${theme.soft("Run")} ${theme.primary("unir auth login --profile <name>")} ${theme.soft("to start.")}\n\n`,
     );
   });
 }

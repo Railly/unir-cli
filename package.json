@@ -1,6 +1,6 @@
 {
   "name": "@crafter/unir-cli",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Agent-first CLI for UNIR (Universidad Internacional de La Rioja) campus online. Surfaces course materials from Moodle + LTI hub + Panopto, downloads, transcribes, summarizes, and publishes to a personal Starlight site.",
   "keywords": [
     "unir",

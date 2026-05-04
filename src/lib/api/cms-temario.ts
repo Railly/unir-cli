@@ -64,7 +64,7 @@ export async function listTemas(profile: string, ltiCmid: number): Promise<TemaL
     throw unirError("unknown-error", `expected cms.unir.net redirect, landed on ${first.url}`);
   }
 
-  // 2. The LTI session may resume on a single-tema view if VIDAMA student opened
+  // 2. The LTI session may resume on a single-tema view if the user opened
   // one earlier. Detect that and click "Menú" to return to the hub.
   if (isSingleTemaView(first.html)) {
     const menuClicked = await clickMenuButton(profile);
